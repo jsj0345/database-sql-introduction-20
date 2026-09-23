@@ -399,3 +399,153 @@ LIMIT 3;
 결국 조회문은 명령어를 하나씩 따로 외우는 것보다 **원하는 결과를 단계적으로 좁혀가는 과정**으로 이해하는 편이 훨씬 자연스럽다.
 
 ---
+
+## 13. 반복해서 나오는 값을 한 번만 보기
+
+조회 결과에 같은 값이 여러 번 나타날 때가 있다.
+
+예를 들어 주문한 고객 번호를 그대로 조회하면, 같은 고객이 여러 번 주문한 경우 고객 번호도 여러 번 나온다.
+
+```sql
+SELECT customer_id
+FROM orders;
+```
+
+이 결과는 주문 기록을 그대로 보여주는 것이기 때문에 중복이 생길 수 있다.
+
+만약 내가 보고 싶은 것이 **주문한 고객 번호의 종류**라면 `DISTINCT`를 사용할 수 있다.
+
+```sql
+SELECT DISTINCT customer_id
+FROM orders;
+```
+
+이렇게 하면 같은 고객 번호가 여러 번 있더라도 결과에는 한 번만 나타난다.
+
+내가 기억한 방식은 다음과 같다.
+
+> `DISTINCT`는 조회 결과에서 같은 값을 반복해서 보여주지 않고 한 번씩만 남길 때 사용한다.
+
+### 여러 컬럼을 함께 확인하는 경우
+
+`DISTINCT`는 컬럼 하나뿐 아니라 여러 컬럼과도 함께 사용할 수 있다.
+
+예를 들어 고객 번호와 상품 번호를 함께 조회하면서 같은 조합이 반복되는 것을 없애고 싶다면 다음처럼 작성할 수 있다.
+
+```sql
+SELECT DISTINCT customer_id, product_id
+FROM orders;
+```
+
+이 경우에는 `customer_id` 하나만 보는 것이 아니라  
+**고객 번호와 상품 번호를 묶은 조합 전체**를 기준으로 중복을 판단한다.
+
+즉 고객 번호가 같아도 상품 번호가 다르면 서로 다른 결과로 남는다.
+
+---
+
+## 14. 일반 값처럼 비교할 수 없는 NULL
+
+데이터를 조회하다 보면 어떤 컬럼에 값이 들어 있지 않은 경우가 있다.
+
+SQL에서는 이런 상태를 `NULL`로 표현한다.
+
+처음에는 `0`이나 빈 문자열과 비슷하게 보일 수 있지만 서로 다르다.
+
+```text
+0   → 숫자 0이 들어 있음
+''  → 비어 있는 문자열이 들어 있음
+NULL → 일반적인 값이 들어 있지 않은 상태
+```
+
+### NULL은 `=`로 비교하지 않는다
+
+예를 들어 설명이 없는 상품을 찾는다고 해서 다음처럼 작성하면 원하는 결과가 나오지 않는다.
+
+```sql
+SELECT *
+FROM products
+WHERE description = NULL;
+```
+
+`NULL`은 일반 값처럼 `=`를 사용해서 비교하지 않는다.
+
+대신 `IS NULL`을 사용한다.
+
+```sql
+SELECT *
+FROM products
+WHERE description IS NULL;
+```
+
+반대로 설명이 들어 있는 상품만 찾고 싶다면 `IS NOT NULL`을 사용한다.
+
+```sql
+SELECT *
+FROM products
+WHERE description IS NOT NULL;
+```
+
+나는 여기서 가장 중요한 부분을 다음처럼 정리했다.
+
+```text
+NULL 확인      → IS NULL
+NULL이 아닌지 확인 → IS NOT NULL
+```
+
+즉 `NULL`을 확인할 때는 `=`이 아니라 `IS`를 사용한다고 기억하면 된다.
+
+### MySQL에서 NULL이 정렬되는 위치
+
+`description`처럼 `NULL`이 들어갈 수 있는 컬럼도 `ORDER BY`로 정렬할 수 있다.
+
+MySQL에서는 `NULL`을 가장 작은 값처럼 처리한다.
+
+그래서 오름차순으로 정렬하면 `NULL`이 먼저 나온다.
+
+```sql
+SELECT *
+FROM products
+ORDER BY description ASC;
+```
+
+반대로 내림차순으로 정렬하면 `NULL`은 뒤쪽에 나온다.
+
+```sql
+SELECT *
+FROM products
+ORDER BY description DESC;
+```
+
+정리하면 다음과 같다.
+
+```text
+ASC  → NULL이 앞쪽
+DESC → NULL이 뒤쪽
+```
+
+### NULL 여부도 정렬 기준으로 사용할 수 있다
+
+다음처럼 `description IS NULL`을 조회해 보면 `NULL` 여부에 따라 결과가 나뉘는 것을 확인할 수 있다.
+
+```sql
+SELECT *,
+       description IS NULL
+FROM products;
+```
+
+이 값을 `ORDER BY`의 기준으로 사용하는 것도 가능하다.
+
+예를 들어 설명이 없는 상품을 먼저 보고, 그 다음 설명이 있는 상품을 내림차순으로 정렬하려면 다음처럼 작성할 수 있다.
+
+```sql
+SELECT *
+FROM products
+ORDER BY description IS NULL DESC,
+         description DESC;
+```
+
+여기서는 첫 번째 정렬 기준으로 `NULL`인 행을 먼저 모으고,  
+그 다음 `description` 값을 기준으로 다시 내림차순 정렬한다고 이해했다.
+
+
